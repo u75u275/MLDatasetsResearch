@@ -1,3 +1,5 @@
+from datetime import date, timedelta
+
 import yfinance as yf
 import pandas as pd
 import numpy as np
@@ -5,9 +7,26 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import cross_val_score, KFold
 from sklearn.metrics import mean_absolute_error, mean_squared_error, mean_absolute_percentage_error
 
-# 1. Завантаження інтраденних (<1d) 5-хвилинних даних за вчора для Apple [finance:Apple Inc.]
-ticker = "AAPL"
-df = yf.download(tickers=ticker, interval="5m", period="1d")
+# v.4
+# 1. Завантаження інтраденних (<1d) 5-хвилинних даних за 60 днів для Apple [finance:Apple Inc.]
+# --- Параметри ---
+TICKER = 'AAPL'
+INTERVAL = '5m'
+DAYS = 59# Потрібна кількість днів
+# -----------------
+
+# Визначення кінцевої та початкової дати
+# Беремо сьогоднішню дату як кінцеву (або вчора, якщо сьогодні вихідний)
+END_DATE = date.today()
+START_DATE = END_DATE - timedelta(days=DAYS)
+
+# 2. Завантаження даних
+df = yf.download(
+    tickers=TICKER,
+    interval=INTERVAL,
+    start=START_DATE,
+    end=END_DATE
+)
 
 # Приведення індексу колонок до простого вигляду, якщо MultiIndex
 if isinstance(df.columns, pd.MultiIndex):
@@ -28,6 +47,10 @@ X = df[feature_cols].copy()
 y = df['Close'].shift(-1).dropna()
 X = X.iloc[:-1, :]  # Вирівнюємо розміри
 y = y.iloc[:X.shape[0]]
+
+# === ДОДАНО: Вивід кількості рядків тренувального набору ===
+print(f"Кількість рядків у тренувальному наборі (X/Y): {len(X)}")
+# ==========================================================
 
 # 3. Крос-валідація для оцінки якості моделі
 kf = KFold(n_splits=5, shuffle=False)
